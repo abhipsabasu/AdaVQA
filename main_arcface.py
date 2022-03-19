@@ -12,8 +12,8 @@ from tensorboardX import SummaryWriter
 
 import utils.utils as utils
 import utils.config as config
-from train import train, evaluate
-import modules.base_model as base_model
+from train_arcface import train, evaluate
+import modules.base_model_arcface as base_model
 from utils.dataset import Dictionary, VQAFeatureDataset
 from utils.losses import Plain
 
@@ -95,16 +95,18 @@ if __name__ == '__main__':
     tb_count = 0
     writer = SummaryWriter() # for visualization
 
-    if not config.train_set == 'train+val' and 'LM' in args.loss_fn:
-        utils.append_bias(train_dset, eval_dset, len(eval_dset.label2ans))
+    # if not config.train_set == 'train+val' and 'LM' in args.loss_fn:
+    utils.append_bias(train_dset, eval_dset, len(eval_dset.label2ans))
 
     # ------------------------MODEL CREATION------------------------
     constructor = 'build_{}'.format(args.model)
-    model = getattr(base_model, constructor)(eval_dset, args.num_hid).cuda()
+    model, metric_fc = getattr(base_model, constructor)(eval_dset, args.num_hid)
+    model = model.cuda()
+    metric_fc = metric_fc.cuda()
     model.w_emb.init_embedding(config.glove_embed_path)
 
-    model = nn.DataParallel(model).cuda()
-    optim = torch.optim.Adamax(model.parameters(), lr=args.lr)
+    # model = nn.DataParallel(model).cuda()
+    optim = torch.optim.Adamax([{'params': model.parameters()}, {'params': metric_fc.parameters()}], lr=args.lr)
 
     if args.loss_fn == 'Plain':
         loss_fn = Plain()
@@ -116,6 +118,7 @@ if __name__ == '__main__':
     tracker = utils.Tracker()
     if args.resume:
         model.load_state_dict(logs['model_state'])
+        metric_fc.load_state_dict(logs['margin_model_state'])
         optim.load_state_dict(logs['optim_state'])
         if 'loss_state' in logs:
             loss_fn.load_state_dict(logs['loss_state'])
@@ -138,21 +141,23 @@ if __name__ == '__main__':
     eval_loader = DataLoader(eval_dset,
                     args.batch_size, shuffle=False, num_workers=4)
     if args.test_only or args.eval_only:
-        evaluate(model, eval_loader, write=True)
+        evaluate(model, metric_fc, eval_loader, write=True)
     else:
         train_loader = DataLoader(
             train_dset, args.batch_size, shuffle=True, num_workers=4)
         for epoch in range(start_epoch, args.epochs):
             print("training epoch {:03d}".format(epoch))
-            tb_count = train(model, optim, train_loader, loss_fn, tracker, writer, tb_count)
+            tb_count = train(model, metric_fc, optim, train_loader, loss_fn, tracker, writer, tb_count, epoch)
 
             if not (config.train_set == 'train+val' and epoch in range(args.epochs - 3)):
                 # save for the last three epochs
                 write = True if config.train_set == 'train+val' else False
                 print("validating after epoch {:03d}".format(epoch))
                 model.train(False)
-                eval_score = evaluate(model, eval_loader, epoch, write=write)
+                metric_fc.train(False)
+                eval_score = evaluate(model, metric_fc, eval_loader, epoch, write=write)
                 model.train(True)
+                metric_fc.train(True)
                 print("eval score: {:.2f} \n".format(100 * eval_score))
 
             if eval_score > best_val_score:
@@ -164,6 +169,7 @@ if __name__ == '__main__':
                     'model_state': model.state_dict(),
                     'optim_state': optim.state_dict(),
                     'loss_state': loss_fn.state_dict(),
+                    'margin_model_state': metric_fc.state_dict()
                 }
                 if not args.not_save:
                     torch.save(results, args.name)

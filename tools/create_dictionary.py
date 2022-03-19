@@ -8,17 +8,47 @@ import utils.config as config
 from utils.dataset import Dictionary
 
 
-def create_dictionary(qa_path):
+'''def create_dictionary(qa_path):
     """ Create dictionary for question words."""
     dictionary = Dictionary()
     for path in os.listdir(qa_path):
-        if 'Multiple' not in path and 'questions' in path:
+        if 'Multiple' not in path and 'dev' not in path and 'questions' in path:
             question_path = os.path.join(qa_path, path)
+            print(question_path)
             qs = json.load(open(question_path))
             if not config.cp_data:
                 qs = qs['questions']
             for q in qs:
                 dictionary.tokenize(q['question'], True)
+    return dictionary'''
+    
+def create_dictionary(dataroot):
+    dictionary = Dictionary()
+    questions = []
+    files = [
+        'v2_OpenEnded_mscoco_train2014_questions.json',
+        'v2_OpenEnded_mscoco_val2014_questions.json',
+        'v2_OpenEnded_mscoco_test2015_questions.json',
+        'v2_OpenEnded_mscoco_test-dev2015_questions.json',
+    ]
+    for path in files:
+        question_path = os.path.join(dataroot, path)
+        qs = json.load(open(question_path))['questions']
+        for q in qs:
+            dictionary.tokenize(q['question'], True)
+    files = [
+        'vqacp_v2_test_annotations.json',
+        'vqacp_v2_train_annotations.json'
+    ]
+    for path in files:
+        ans_path = os.path.join(dataroot, path)
+        ans_json = json.load(open(ans_path))
+        for dic in ans_json:
+            mca = dic['multiple_choice_answer']
+            dictionary.tokenize(mca, True)
+            for ans in dic['answers']:
+                dictionary.tokenize(ans['answer'], True)
+    print(dictionary.word2idx)
     return dictionary
 
 

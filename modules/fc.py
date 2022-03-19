@@ -11,7 +11,7 @@ class FCNet(nn.Module):
         for i in range(len(dims)-1):
             layers.append(weight_norm(nn.Linear(dims[i], dims[i+1]), dim=None))
             layers.append(nn.ReLU())
-            layers.append(nn.Dropout(dropout, inplace=True))
+            layers.append(nn.Dropout(dropout))
         self.main = nn.Sequential(*layers)
 
     def forward(self, x):

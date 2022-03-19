@@ -38,6 +38,7 @@ def main():
     img_ids = []
     for split in split_set:
         split_ids_path = os.path.join(config.ids_path, split + '_ids.json')
+        print(split_ids_path)
         if os.path.exists(split_ids_path):
             img_ids += json.load(open(split_ids_path, 'r'))
         else:

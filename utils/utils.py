@@ -34,8 +34,8 @@ def path_for(train=False, val=False, test=False, question=False, answer=False):
         s = fmt.format(config.task, config.version, split)
     else:
         s = fmt.format(config.task, config.image_dataset, split)
-
-    return os.path.join(config.qa_path, s)
+    # print(config.qa_path, s)
+    return os.path.join(config.main_path, s)
 
 
 def get_file(train=False, val=False, test=False, question=False, answer=False):

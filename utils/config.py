@@ -1,8 +1,8 @@
 # ----------------------running settings-------------------------- #
 cp_data     = True      # using vqa-cp or not
-version     = 'v1'      # 'v1' or 'v2'
+version     = 'v2'      # 'v1' or 'v2'
 train_set   = 'train'   # 'train' or 'train+val'
-loss_type   = 'ce'     # 'bce' or 'ce'
+loss_type   = 'ce_margin'     # 'bce' or 'ce'
 in_memory   = False     # load all the image feature in memory
 
 # ----------------------running settings-------------------------- #
@@ -11,21 +11,20 @@ scale = 32
 use_cos = True
 
 # ----------------------before-process data paths---------------- #
-main_path       = '/disk0/vqa/test/vqa-data/'
-qa_path         = main_path + 'vqa-cp/' if cp_data else main_path
-qa_path        += version # questions and answers
-bottom_up_path  = main_path + 'bottom_up_feature/'  # raw image features
-glove_path      = main_path + 'word_embed/glove/glove.6B.300d.txt'
+main_path       = '/data2/abhipsa/bottom-up-attention-vqa/data'
+qa_path         = main_path
+bottom_up_path  = main_path + '/trainval_36/'  # raw image features
+glove_path      = main_path + '/glove/glove.6B.300d.txt'
 
 # ----------------------image id related paths------------------- #
-ids_path    = 'data/'
-image_path  = main_path + 'mscoco/' # image paths
+ids_path    = '/data2/abhipsa/AdaVQA/data/'
+image_path  = main_path + '/mscoco/' # image paths
 
 # ----------------------processed data paths--------------------- #
-rcnn_path           = main_path + 'rcnn-data/'
-cache_root          = qa_path + '/cache/'
+rcnn_path           = main_path + '/rcnn-data/'
+cache_root          = qa_path + '/cache2/'
 dict_path           = qa_path + '/dictionary.json'
-glove_embed_path    = qa_path + '/glove6b_init.npy'
+glove_embed_path    = main_path + '/glove6b_init.npy'
 
 # ----------------------running settings------------------------- #
 max_question_len    = 14

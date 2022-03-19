@@ -1,0 +1,4 @@
+runs/
+logs/*
+*pyc
+vqa_vqacp_*
