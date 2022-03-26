@@ -63,7 +63,7 @@ class ArcMarginProduct(nn.Module):
             m: margin
             cos(theta + m)
         """
-    def __init__(self, in_features, out_features, s=8.0, easy_margin=False):
+    def __init__(self, in_features, out_features, s=16.0, easy_margin=False):
         super(ArcMarginProduct, self).__init__()
         self.in_features = in_features
         self.out_features = out_features
@@ -72,7 +72,7 @@ class ArcMarginProduct(nn.Module):
         self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features))
         # self.weight.data.uniform_(-1 / in_features, 1 / in_features)
         nn.init.xavier_uniform_(self.weight)
-
+        self.std = 0.1
         self.easy_margin = easy_margin
         # self.cos_m = math.cos(m)
         # self.sin_m = math.sin(m)
@@ -81,6 +81,7 @@ class ArcMarginProduct(nn.Module):
 
     def forward(self, input, label, m):
         m = 1 - m
+        m = torch.normal(mean=m, std=self.std)
         self.cos_m = torch.cos(m)
         self.sin_m = torch.sin(m)
         self.th = torch.cos(math.pi - m)

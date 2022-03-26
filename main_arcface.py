@@ -64,7 +64,7 @@ if __name__ == '__main__':
     os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu
     cudnn.benchmark = True
 
-    seed = 1111
+    seed = 5193
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.benchmark = True
