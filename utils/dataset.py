@@ -94,7 +94,7 @@ def _load_dataset(cache_path, name, img_id2val):
     if test: # will be ignored anyway
         answers = [
             {'image_id': 0, 'question_id': 0, 'question_type': '',
-            'labels': [], 'scores': []} 
+            'labels': [], 'scores': []}
             for _ in range(len(questions))]
     else:
         answer_path = os.path.join(cache_path, '{}_target.json'.format(name))
@@ -124,7 +124,16 @@ def _load_margin(cache_path, name, entries):
         portion = torch.tensor(list(ans_num_dict.values()), dtype=torch.float32)
         qt_dict[qt] = (ans, portion)
 
-    return qt_dict
+    mask_path = os.path.join(cache_path, '{}_freq.json'.format(name))
+    qt_dict_freq = json.load(open(mask_path, 'r'))
+
+    for qt in qt_dict_freq:
+        ans_num_dict = utils.json_keys2int(qt_dict_freq[qt])
+        ans = torch.tensor(list(ans_num_dict.keys()), dtype=torch.int64)
+        portion = torch.tensor(list(ans_num_dict.values()), dtype=torch.float32)
+        qt_dict_freq[qt] = (ans, portion)
+
+    return qt_dict, qt_dict_freq
 
     # for entry in entries:
     #     ans_entry = entry['answer']
@@ -165,7 +174,7 @@ class VQAFeatureDataset(Dataset):
                 self.spatials = np.array(hf.get('spatial_features'))
 
         self.entries = _load_dataset(config.cache_root, name, self.img_id2idx)
-        self.margins = _load_margin(config.cache_root, name, self.entries)
+        self.margins, self.freq = _load_margin(config.cache_root, name, self.entries)
 
         self.tokenize()
         self.tensorize()
@@ -234,14 +243,43 @@ class VQAFeatureDataset(Dataset):
         target = torch.zeros(self.num_ans_candidates)
 
         margin_label, margin_score = self.margins[q_type]
-        target_margin = torch.zeros(self.num_ans_candidates)
+        freq_label, freq_score = self.freq[q_type]
 
+
+        min_freq = freq_score.min()
+        max_freq = freq_score.max()
+        imbalance_ratio = (max_freq / min_freq).item()
+        betas = [0, (0.9999 ** imbalance_ratio)]
+        torch.set_printoptions(profile="full")
+        idx = 0
+        eff = 1 - torch.float_power(betas[idx], freq_score)
+        per0 = (1 - betas[idx]) / eff
+        per0 = per0 / torch.sum(per0) * freq_score.shape[0]
+        idx = 1
+        eff = 1 - torch.float_power(betas[idx], freq_score)
+        per1 = (1 - betas[idx]) / eff
+        per1 = per1 / torch.sum(per1) * freq_score.shape[0]
+        per1 = per1
+        # per1 = torch.where(per1 > 1.0, 1.0, per1.double()).float()
+        per0 = per0.float()
+        per1 = per1.float()
+        # print(per1.max(), per1.min())
+        # for i in range(per1.shape[0]):
+        #     print(per1[i], freq_score[i], freq_label[i], labels)
+        ldam = 1.0 / freq_score
+        ldam = ldam * (0.5 / torch.max(ldam))
+        ldam_margin = torch.zeros(self.num_ans_candidates)
+        target_margin = torch.zeros(self.num_ans_candidates)
+        freq_margin0 = torch.zeros(self.num_ans_candidates)
+        freq_margin1 = torch.zeros(self.num_ans_candidates)
         if labels is not None:
             target.scatter_(0, labels, scores)
             target_margin.scatter_(0, margin_label, margin_score)
-
+            freq_margin0.scatter_(0, freq_label, per0)
+            freq_margin1.scatter_(0, freq_label, per1)
+            ldam_margin.scatter_(0, freq_label, ldam)
         bias = entry['bias'] if 'bias' in entry else 0
-        return features, question, target, target_margin, bias, question_id
+        return features, question, target, target_margin, bias, question_id, freq_margin0, freq_margin1, ldam_margin
 
     def __len__(self):
         return len(self.entries)

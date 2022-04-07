@@ -7,8 +7,9 @@ in_memory   = False     # load all the image feature in memory
 
 # ----------------------running settings-------------------------- #
 entropy = 4.5
-scale = 32
+scale = 16
 use_cos = True
+sc_epoch = 30
 
 # ----------------------before-process data paths---------------- #
 main_path       = '/data2/abhipsa/bottom-up-attention-vqa/data'

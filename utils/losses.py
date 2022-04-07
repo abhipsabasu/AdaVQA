@@ -15,20 +15,22 @@ def convert_sigmoid_logits_to_binary_logprobs(logits):
 def cross_entropy_loss(logits, labels, **kwargs):
     """ Modified cross entropy loss. """
     if config.use_cos:
-        logits = config.scale * (logits - ((1 - kwargs['margin'])**2))
+        logits = config.scale * (logits - (1 - kwargs['ldam']))
         # logits = config.scale * (logits - 0.9)
         # logits = config.scale * logits
+    f = kwargs['per']
     nll = F.log_softmax(logits, dim=-1)
     loss = -nll * labels
+    loss = loss * f
     return loss.sum(dim=-1).mean()
 
 
 def cross_entropy_loss_arc(logits, labels, **kwargs):
     """ Modified cross entropy loss. """
-
+    f = kwargs['per']
     nll = F.log_softmax(logits, dim=-1)
-    epoch = kwargs['epoch']
     loss = -nll * labels
+    loss = loss * f
     # if epoch > 15:
     #     loss *= (1 - kwargs['bias']) ** 5
     return loss.sum(dim=-1).mean()

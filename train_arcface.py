@@ -1,5 +1,5 @@
 import json
-
+import torch
 import torch.nn as nn
 from tqdm import tqdm
 import utils.config as config
@@ -24,20 +24,33 @@ def saved_for_eval(dataloader, results, question_ids, answer_preds):
     return results
 
 
-def train(model, m_model, optim, train_loader, loss_fn, tracker, writer, tb_count, epoch):
+def train(model, m_model, optim, train_loader, loss_fn, tracker, writer, tb_count, epoch, args):
+    adjust_learning_rate(optim, epoch, args)
     loader = tqdm(train_loader, ncols=0)
     loss_trk = tracker.track('loss', tracker.MovingMeanMonitor(momentum=0.99))
     acc_trk = tracker.track('acc', tracker.MovingMeanMonitor(momentum=0.99))
 
-    for v, q, a, mg, bias, q_id in loader:
+    for v, q, a, mg, bias, q_id, f1, f2, ldam in loader:
         v = v.cuda()
         q = q.cuda()
         a = a.cuda()
         mg = mg.cuda()
         bias = bias.cuda()
+        ldam = ldam.cuda()
         hidden = model(v, q)
+        # ldam = torch.where(mg > 0, ldam, mg)
         hidden, pred = m_model(hidden, a, mg)
-        dict_args = {'margin': mg, 'bias': bias, 'hidden': hidden, 'epoch': epoch}
+        if epoch < 15: #config.sc_epoch:
+            f1 = f1.cuda()
+            dict_args = {'margin': mg, 'bias': bias, 'hidden': hidden, 'epoch': epoch, 'per': f1, 'ldam': ldam}
+        else:
+            f1 = f1.cuda()
+            if epoch % 2 == 1:
+                bias = bias ** 0.25
+            else:
+                bias = (1 - bias) ** 0.25
+            dict_args = {'margin': mg, 'bias': bias, 'hidden': hidden, 'epoch': epoch, 'per': bias, 'ldam': ldam}
+
         loss = loss_fn(hidden, a, **dict_args)
 
         # writer.add_scalars('data/losses', {
@@ -62,10 +75,11 @@ def train(model, m_model, optim, train_loader, loss_fn, tracker, writer, tb_coun
 def evaluate(model, m_model, dataloader, epoch=0, write=False):
     score = 0
     results = [] # saving for evaluation
-    for v, q, a, mg, _, q_id in tqdm(dataloader, ncols=0, leave=True):
+    for v, q, a, mg, _, q_id, _, _, ldam in tqdm(dataloader, ncols=0, leave=True):
         v = v.cuda()
         q = q.cuda()
         mg = mg.cuda()
+        ldam = ldam.cuda()
         a = a.cuda()
         hidden = model(v, q)
         hidden, pred = m_model(hidden, a, mg)
@@ -83,3 +97,18 @@ def evaluate(model, m_model, dataloader, epoch=0, write=False):
             json.dump(results, fd)
     print(score)
     return score
+
+
+def adjust_learning_rate(optimizer, epoch, args):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    epoch = epoch + 1
+    if epoch <= 5:
+        lr = args.lr * epoch / 5
+    elif epoch > 25:
+        lr = args.lr * 0.01
+    elif epoch > 15:
+        lr = args.lr * 0.1
+    else:
+        lr = args.lr
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr

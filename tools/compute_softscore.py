@@ -78,6 +78,7 @@ def compute_target(answers_dset, ans2label, name, cache_root):
             'image_id': ans_entry['image_id'],
             'labels': labels,
             'scores': scores,
+            'answer_type': ans_entry['answer_type']
         })
 
     utils.create_dir(cache_root)
@@ -114,9 +115,30 @@ def extract_type(answers_dset, name, ans2label, cache_root):
             number += 1
         else:
             qt_dict[qt] = ans_num_dict
-
     cache_file = os.path.join(cache_root, name + '_margin.json')
     json.dump(qt_dict, open(cache_file, 'w'))
+    qt_dict = defaultdict(list)
+    for ans_entry in answers_dset:
+        qt = ans_entry['question_type']
+        ans_idxs = []
+        for ans in ans_entry['answers']:
+            ans = utils.preprocess_answer(ans['answer'])
+            ans_idx = ans2label.get(ans, None)
+            if ans_idx:
+                ans_idxs.append(ans_idx)
+        qt_dict[qt].extend(ans_idxs)  # counting later
+
+
+    for qt in qt_dict:
+        ans_num_dict = Counter(qt_dict[qt])
+        # ans_num_dict = {k: v
+        #     for k, v in ans_num_dict.items() if v >= 50}
+
+        qt_dict[qt] = ans_num_dict
+    cache_file = os.path.join(cache_root, name + '_freq.json')
+    json.dump(qt_dict, open(cache_file, 'w'))
+
+
 
 
 if __name__ == '__main__':

@@ -147,7 +147,7 @@ if __name__ == '__main__':
             train_dset, args.batch_size, shuffle=True, num_workers=4)
         for epoch in range(start_epoch, args.epochs):
             print("training epoch {:03d}".format(epoch))
-            tb_count = train(model, metric_fc, optim, train_loader, loss_fn, tracker, writer, tb_count, epoch)
+            tb_count = train(model, metric_fc, optim, train_loader, loss_fn, tracker, writer, tb_count, epoch, args)
 
             if not (config.train_set == 'train+val' and epoch in range(args.epochs - 3)):
                 # save for the last three epochs

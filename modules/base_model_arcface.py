@@ -26,10 +26,8 @@ class BaseModel(nn.Module):
     def forward(self, v, q):
         """
         Forward=
-
         v: [batch, num_objs, obj_dim]
         q: [batch_size, seq_length]
-
         return: logits, not probs
         """
         w_emb = self.w_emb(q)
@@ -42,8 +40,8 @@ class BaseModel(nn.Module):
         v_repr = self.v_net(v_emb)
         joint_repr = q_repr * v_repr
         # fusion_repr = self.fusion(joint_repr)
-        # # logits = self.classifier(logits)
-        #
+        # # # logits = self.classifier(logits)
+        # #
         # if config.use_cos:
         #     k_norm = l2_norm(self.kernel, dim=0)
         #     fusion_repr = l2_norm(fusion_repr, dim=-1)
@@ -51,7 +49,7 @@ class BaseModel(nn.Module):
         #     k_norm = self.kernel
         # logits = torch.mm(fusion_repr, k_norm)
 
-        return joint_repr #, logits
+        return joint_repr
 
 
 class ArcMarginProduct(nn.Module):
